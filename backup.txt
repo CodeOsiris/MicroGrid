@@ -1,0 +1,45 @@
+current_city = j % NUM_OF_CITY;
+			if (j % 5 != 4)
+			{
+				
+				population[i].gene[j].borrow_city = population[i].gene[j].borrow_amount = 0;
+				if (generate[current_city][point] - usage[current_city][point] < 0)
+					actual[current_city][point] = generate[current_city][point];
+				if(point==0)
+					population[0].gene[j].storage = generate[current_city][point] - usage[current_city][point];
+				else
+					population[0].gene[j].storage = population[0].gene[j-NUM_OF_CITY].storage 
+												    + generate[current_city][point]
+													- usage[current_city][point];
+				if (population[0].gene[j].storage < 0)
+				{
+					sum -= log(2 - LOST_PER_LACK * population[i].gene[j].storage);
+					population[i].gene[j].storage = 0;
+				}
+			}
+			else
+			{
+				if (generate[current_city][point] - usage[current_city][point] < 0)
+					actual[current_city][point] = generate[current_city][point];
+				if(point==0)
+					population[0].gene[j].storage = generate[current_city][point] - usage[current_city][point];
+				else
+					population[0].gene[j].storage = population[0].gene[j-NUM_OF_CITY].storage 
+												    + generate[current_city][point]
+													- usage[current_city][point];
+				if (j >= 18)
+				{
+					population[i].gene[j].borrow_city = 4;
+					population[i].gene[j].borrow_amount = population[i].gene[j-1].storage;
+					population[i].gene[j].storage += population[i].gene[j].borrow_amount;
+				}
+				if (population[0].gene[j].storage < 0)
+				{
+					sum -= log(2 - LOST_PER_LACK * population[i].gene[j].storage);
+					population[i].gene[j].storage = 0;
+				}
+			}
+			sum += PRICE_PER_UNIT * actual[current_city][point] - COST_PER_UNIT * generate[current_city][point]
+				   - COST_PER_DIST * population[i].gene[j].borrow_amount * map[population[i].gene[j].borrow_city][current_city];
+		}
+	cout << sum;cin >> sum;

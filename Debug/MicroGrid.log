@@ -1,0 +1,17 @@
+﻿生成启动时间为 2012/11/12 1:53:18。
+     1>项目“D:\Users\The19ThHell\documents\visual studio 2012\Projects\MicroGrid\MicroGrid.vcxproj”在节点 2 上(Build 个目标)。
+     1>ClCompile:
+         H:\SOFTWARE\Microsoft Visual Studio 11.0\VC\bin\CL.exe /c /ZI /nologo /W3 /WX- /Od /Oy- /D WIN32 /D _DEBUG /D _CONSOLE /D _UNICODE /D UNICODE /Gm /EHsc /RTC1 /MDd /GS /fp:precise /Zc:wchar_t /Zc:forScope /Fo"Debug\\" /Fd"Debug\vc110.pdb" /Gd /TP /analyze- /errorReport:prompt MicroGrid.cpp
+         MicroGrid.cpp
+     1>d:\users\the19thhell\documents\visual studio 2012\projects\microgrid\microgrid.cpp(385): warning C4101: “x”: 未引用的局部变量
+     1>d:\users\the19thhell\documents\visual studio 2012\projects\microgrid\microgrid.cpp(384): warning C4101: “one”: 未引用的局部变量
+     1>d:\users\the19thhell\documents\visual studio 2012\projects\microgrid\microgrid.cpp(621): warning C4101: “i”: 未引用的局部变量
+     1>d:\users\the19thhell\documents\visual studio 2012\projects\microgrid\microgrid.cpp(621): warning C4101: “t”: 未引用的局部变量
+       Link:
+         H:\SOFTWARE\Microsoft Visual Studio 11.0\VC\bin\link.exe /ERRORREPORT:PROMPT /OUT:"D:\Users\The19ThHell\documents\visual studio 2012\Projects\MicroGrid\Debug\MicroGrid.exe" /INCREMENTAL /NOLOGO kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /MANIFEST /MANIFESTUAC:"level='asInvoker' uiAccess='false'" /manifest:embed /DEBUG /PDB:"D:\Users\The19ThHell\documents\visual studio 2012\Projects\MicroGrid\Debug\MicroGrid.pdb" /SUBSYSTEM:CONSOLE /TLBID:1 /DYNAMICBASE /NXCOMPAT /IMPLIB:"D:\Users\The19ThHell\documents\visual studio 2012\Projects\MicroGrid\Debug\MicroGrid.lib" /MACHINE:X86 Debug\MicroGrid.obj
+         MicroGrid.vcxproj -> D:\Users\The19ThHell\documents\visual studio 2012\Projects\MicroGrid\Debug\MicroGrid.exe
+     1>已完成生成项目“D:\Users\The19ThHell\documents\visual studio 2012\Projects\MicroGrid\MicroGrid.vcxproj”(Build 个目标)的操作。
+
+生成成功。
+
+已用时间 00:00:11.93
