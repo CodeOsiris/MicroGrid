@@ -8,9 +8,16 @@
 #include <iomanip>
 using namespace std;
 
+#ifdef _WIN32
+#include <windows.h>
+#define VERSION 0
+#else
+#define VERSION 1
+#endif
+
 //Basic Const
 const int POP_SIZE = 100;
-const int MAX_GENERATION = 80;
+const int MAX_GENERATION = 8000;
 const int NUM_OF_GENE = 240;
 const int MAX_STABLE = 800;
 const int MODGA_R = 50;
@@ -29,7 +36,7 @@ const double COST_PER_DIST = 0.1;
 const double LOST_PER_LACK = 2.0;
 const double GAIN_PER_MORE = 0.05;
 const double ROLL_BOUND = 0.01;
-const int MAX_LOOP_TIME = 1;
+const int MAX_LOOP_TIME = 10;
 const int CURRENT[GENE_PER_POINT] = {0,0,0,0,1,1,1,2,2,3};
 const int BORROW[GENE_PER_POINT] = {1,2,3,4,2,3,4,3,4,4};
 
@@ -543,7 +550,7 @@ void trace(int cnt)
 	}
 	for (int i = 0;i < NUM_OF_GENE;i++)
 		fout << population[POP_SIZE].gene[i].borrow_amount << "\n";*/
-	fout << history_best.fitness << "\n";
+	fout << population[POP_SIZE].fitness << " " <<  history_best.fitness << "\n";
 	fout.close();
 }
 
@@ -555,7 +562,7 @@ int main()
 	for (int i = 1;i <= MAX_GENERATION;i++)
 		adjust[i] = 1 + exp(float(-i));
 	srand((unsigned int)time(0));
-	cout << "0%";
+    printf("0.00%%\n");
 	//init_file();
 	while (count < MAX_LOOP_TIME)
 	{
@@ -570,7 +577,7 @@ int main()
 			elitist();
 			select();
 			report(count);
-			crossover();
+            crossover();
 			mutate();
 			if (stable >= MAX_STABLE)
 				rollback();
@@ -579,8 +586,15 @@ int main()
 			evaluate();
 		}
 		trace(MAX_LOOP_TIME);
-		system("CLS");
-		cout << progress_bar << fixed << setprecision(2) << complete_percent << "%";
+        if (VERSION == 0)
+        {
+            system("CLS");
+    		cout << progress_bar << fixed << setprecision(2) << complete_percent << "%";
+        }
+        else
+        {
+            printf("%s%.2f%%\n",progress_bar.c_str(),complete_percent);
+        }
 		count++;
 	}
 	ofstream ftotal("ga_total.txt");
