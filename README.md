@@ -1,4 +1,4 @@
 MicroGrid
 =========
 
-MicroGrid Employment using Evolution Algorithm
+基于遗传算法给出微电网调度的最优方案
