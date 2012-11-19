@@ -17,7 +17,7 @@ using namespace std;
 
 //Basic Const
 const int POP_SIZE = 100;
-const int MAX_GENERATION = 8000;
+const int MAX_GENERATION = 12000;
 const int NUM_OF_GENE = 240;
 const int MAX_STABLE = 800;
 const int MODGA_R = 50;
@@ -33,10 +33,10 @@ const int CHECK_POINT = 24;
 const double PRICE_PER_UNIT = 1.0;
 const double COST_PER_UNIT = 0.3;
 const double COST_PER_DIST = 0.1;
-const double LOST_PER_LACK = 2.0;
+const double LOST_PER_LACK = 1.0;
 const double GAIN_PER_MORE = 0.05;
 const double ROLL_BOUND = 0.01;
-const int MAX_LOOP_TIME = 10;
+const int MAX_LOOP_TIME = 15;
 const int CURRENT[GENE_PER_POINT] = {0,0,0,0,1,1,1,2,2,3};
 const int BORROW[GENE_PER_POINT] = {1,2,3,4,2,3,4,3,4,4};
 
@@ -54,6 +54,8 @@ double generate[NUM_OF_CITY][CHECK_POINT] = {0};
 double actual[NUM_OF_CITY][CHECK_POINT] = {0};
 double storage[NUM_OF_CITY][CHECK_POINT] = {0};
 double differ[NUM_OF_CITY][CHECK_POINT] = {0};
+bool able[NUM_OF_CITY][CHECK_POINT] = {false};
+
 //SA mutation
 double adjust[MAX_GENERATION + 1];
 
@@ -74,6 +76,7 @@ public:
 	double fitness;
 	double rfitness;
 	double cfitness;
+    double punish;
 	bool chosen;
 };
 Genetype population[POP_SIZE + 1];
@@ -120,7 +123,7 @@ void init_file()
 	int i,j,point,current_city,borrow_city;
 	stable = 0;
 	double sum = 0;
-	//∂¡»°ª∑æ≥±‰¡ø
+	//ËØªÂèñÁéØÂ¢ÉÂèòÈáè
 	for (i = 0;i < NUM_OF_CITY;i++)
 	{
 		for (j = 0;j < CHECK_POINT;j++)
@@ -131,7 +134,7 @@ void init_file()
 	for (i = 0;i < NUM_OF_CITY;i++)
 		for (j = 0;j < NUM_OF_CITY;j++)
 			fin >> map[i][j];
-	//∏˘æ›Ãÿ∂®∑Ω∞∏≥ı ºªØ
+	//Ê†πÊçÆÁâπÂÆöÊñπÊ°àÂàùÂßãÂåñ
 	ifstream finf("ga_total.txt");
 	int city;
 	double borrow;
@@ -170,15 +173,32 @@ void initialize(int cnt)
 	ifstream fin(INPUT_FILE_NAME + to_string(cnt) + ".txt");
 	int i,j,point,current_city,borrow_city;
 	stable = 0;
-	double sum = 0;
+	double sum[CHECK_POINT] = {0};
 	for (i = 0;i < NUM_OF_CITY;i++)
 	{
 		for (j = 0;j < CHECK_POINT;j++)
 			fin >> usage[i][j];
 		for (j = 0;j < CHECK_POINT;j++)
 			fin >> generate[i][j];
-		sum += generate[i][j] - usage[i][j];
 	}
+    for (i = 0;i < NUM_OF_CITY;i++)
+    {
+      for (j = 0;j < CHECK_POINT;j++)
+      {
+          if (j > 0)
+            sum[j] = sum[j - 1];
+          sum[j] += generate[i][j] - usage[i][j];
+      }
+      for (j = CHECK_POINT - 1;j >= 0;j--)
+      {
+          if (sum[j] <= 0)
+          {
+              for (j = j;j >= 0;j--)
+                able[i][j] = false;
+          }
+          else able[i][j] = true;
+      }
+    }
 	for (i = 0;i < NUM_OF_CITY;i++)
 		for (j = 0;j < NUM_OF_CITY;j++)
 			fin >> map[i][j];
@@ -192,8 +212,9 @@ void initialize(int cnt)
 			//Initialize storage,borrow_city,borrow_amount
 			population[i].lower[j] = min(0.0,usage[current_city][point] - generate[current_city][point]);
 			population[i].upper[j] = max(0.0,generate[borrow_city][point] - usage[borrow_city][point]);
-			population[i].gene[j].borrow_amount = random_value(population[i].lower[j],population[i].upper[j]);
-			//population[i].gene[i].borrow_amount = 0;
+            if (able[current_city][point])
+    			population[i].gene[j].borrow_amount = random_value(population[i].lower[j],population[i].upper[j]);
+            else population[i].gene[i].borrow_amount = 0;
 		}
 	}
 	population[POP_SIZE] = population[0];
@@ -214,11 +235,12 @@ double random_value(double low,double high)
 void evaluate()
 {
 	int i,j,k,point,current_city,borrow_city;
-	double sum,cost;
+	double sum,cost,lost;
 	for (i = 0;i < POP_SIZE;i++)
 	{
 		sum = 0;
 		cost = 0;
+        lost = 0;
 		for (j = 0;j < NUM_OF_GENE;j++)
 		{
 			point = j / GENE_PER_POINT;
@@ -233,7 +255,7 @@ void evaluate()
 					else
 						storage[k][point] = generate[k][point] - usage[k][point];
 				}
-			//≈–∂œ «∑Ò‘ –ÌΩËµÁ£¨»ÙµÁ¡ø≤ª◊„‘Úµ˜’˚ΩËµÁ«Î«Û
+			//Âà§Êñ≠ÊòØÂê¶ÂÖÅËÆ∏ÂÄüÁîµÔºåËã•ÁîµÈáè‰∏çË∂≥ÂàôË∞ÉÊï¥ÂÄüÁîµËØ∑Ê±Ç
 			if (population[i].gene[j].borrow_amount > 0)
 			{
 				if (storage[borrow_city][point] >= 0)
@@ -256,16 +278,14 @@ void evaluate()
 					cost += abs(population[i].gene[j].borrow_amount) * COST_PER_DIST * map[borrow_city][current_city];
 				}
 			}
-			/*storage[borrow_city][point] -= population[i].gene[j].borrow_amount;
-			storage[current_city][point] += population[i].gene[j].borrow_amount;
-			cost += abs(population[i].gene[j].borrow_amount) * COST_PER_DIST * map[borrow_city][current_city];*/
-			//Œ¨ª§ µº ”√µÁ¡ø≤¢º∆À„  ”¶÷µ
+			//Áª¥Êä§ÂÆûÈôÖÁî®ÁîµÈáèÂπ∂ËÆ°ÁÆóÈÄÇÂ∫îÂÄº
 			if ((j + 1) % GENE_PER_POINT == 0)
 				for (k = 0;k < NUM_OF_CITY;k++)
 				{
 					if (storage[k][point] < 0)
 					{
 						actual[k][point] = usage[k][point] + storage[k][point];
+                        lost += storage[k][point] * LOST_PER_LACK;
 						storage[k][point] = 0;
 					}
 					else actual[k][point] = usage[k][point];
@@ -273,13 +293,8 @@ void evaluate()
 				}
 		}
 		sum -= cost;
-		for (j = 0; j < NUM_OF_CITY;j++)
-			for (k = 0;k < CHECK_POINT;k++)
-			{
-				differ[j][k] = 0;
-				storage[j][k] = 0;
-			}
-		population[i].fitness = sum;
+		population[i].fitness = sum + lost;
+        population[i].punish = lost;
 	}
 }
 
@@ -295,8 +310,7 @@ void keep_best()
 			population[POP_SIZE].fitness = population[mem].fitness;
 		}
 	}
-	for (i = 0;i < NUM_OF_GENE;i++)
-		population[POP_SIZE].gene[i] = population[best_record].gene[i];
+    population[POP_SIZE] = population[best_record];
 }
 
 void elitist()
@@ -339,6 +353,7 @@ void elitist()
 		for (i = 0;i < NUM_OF_GENE;i++)
 			population[POP_SIZE].gene[i] = population[best_mem].gene[i];
 		population[POP_SIZE].fitness = population[best_mem].fitness;
+        population[POP_SIZE].punish = population[best_mem].punish;
 		stable = 0;
 	}
 	else
@@ -346,6 +361,7 @@ void elitist()
 		for (i = 0;i < NUM_OF_GENE;i++)
 			population[worst_mem].gene[i] = population[POP_SIZE].gene[i];
 		population[worst_mem].fitness = population[POP_SIZE].fitness;
+        population[worst_mem].punish = population[POP_SIZE].punish;
 		stable++;
 	}
 }
@@ -534,7 +550,7 @@ void report(int cnt)
 		for (int j = i;j < NUM_OF_GENE;j += NUM_OF_CITY)
 			fout << population[POP_SIZE].gene[j].borrow_city + 1 << " " << population[POP_SIZE].gene[j].borrow_amount << "\n";
 	}*/
-	fout << population[POP_SIZE].fitness << "\n";
+	fout << population[POP_SIZE].fitness - population[POP_SIZE].punish << " " << population[POP_SIZE].punish << "\n";
 	fout.close();
 }
 
@@ -550,33 +566,41 @@ void trace(int cnt)
 	}
 	for (int i = 0;i < NUM_OF_GENE;i++)
 		fout << population[POP_SIZE].gene[i].borrow_amount << "\n";*/
-	fout << population[POP_SIZE].fitness << " " <<  history_best.fitness << "\n";
+	fout << population[POP_SIZE].fitness - population[POP_SIZE].punish << " " << population[POP_SIZE].punish << " " <<  history_best.fitness - history_best.punish << " " << history_best.punish << "\n";
 	fout.close();
 }
 
 int main()
 {
 	int count = 0;
-	string progress_bar;
-	double complete_percent;
+	string progress_bar = "";
+	double complete_percent = 0;
+    double border = 0;
 	for (int i = 1;i <= MAX_GENERATION;i++)
 		adjust[i] = 1 + exp(float(-i));
 	srand((unsigned int)time(0));
+    if (!VERSION)
+      system("CLS");
+    else printf("\033[2J\033[0;0H");
     printf("0.00%%\n");
 	//init_file();
 	while (count < MAX_LOOP_TIME)
 	{
-		progress_bar.append(">");
-		complete_percent = (double)(count + 1) / (double)MAX_LOOP_TIME * 100;
+        border = (double)(count + 1) / (double)MAX_LOOP_TIME * 100;
 		generation = 0;
 		initialize(0);
 		evaluate();
 		keep_best();
+        history_best = population[POP_SIZE];
 		while (generation++ < MAX_GENERATION)
 		{
 			elitist();
 			select();
 			report(count);
+            if (VERSION)
+            {
+                printf("\033[1A\033[K%s%.2f%%\n",progress_bar.c_str(),complete_percent + (double)generation / (double)MAX_GENERATION * 100 / (double)MAX_LOOP_TIME);
+            }
             crossover();
 			mutate();
 			if (stable >= MAX_STABLE)
@@ -586,14 +610,16 @@ int main()
 			evaluate();
 		}
 		trace(MAX_LOOP_TIME);
-        if (VERSION == 0)
+		progress_bar.append(">");
+		complete_percent = border;
+        if (!VERSION)
         {
             system("CLS");
-    		cout << progress_bar << fixed << setprecision(2) << complete_percent << "%";
+    		cout << progress_bar << fixed << setprecision(2) << complete_percent << "%\n";
         }
         else
         {
-            printf("%s%.2f%%\n",progress_bar.c_str(),complete_percent);
+            printf("\033[1A\033[K%s%.2f%%\n",progress_bar.c_str(),complete_percent);
         }
 		count++;
 	}
@@ -601,10 +627,10 @@ int main()
 	int current_city,timepoint,j;
 	for (j = 0;j < NUM_OF_GENE;j++)
 	{
-		current_city = j % NUM_OF_CITY +1;
+		current_city = j % NUM_OF_CITY + 1;
 		timepoint = j / NUM_OF_CITY;
 		ftotal << history_best.gene[j].borrow_amount << endl;
 	}
-	cout << "\nCompleted.\n";
+	cout << "Completed.\n";
 	return 0;
 }
