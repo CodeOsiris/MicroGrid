@@ -23,6 +23,7 @@ const int MAX_STABLE = 800;
 const int MODGA_R = 50;
 const double P_CROSSOVER = 0.7;
 const double P_MUTATION = 0.02;
+const double P_SUBSTITUTE = 0.05;
 const string INPUT_FILE_NAME = "ga_data";
 const string OUTPUT_FILE_NAME = "ga_log";
 
@@ -49,6 +50,7 @@ int worst_mem;
 
 //Particular Variable
 int map[NUM_OF_CITY][NUM_OF_CITY] = {0};
+int random_sort[GENE_PER_POINT];
 double usage[NUM_OF_CITY][CHECK_POINT] = {0};
 double generate[NUM_OF_CITY][CHECK_POINT] = {0};
 double actual[NUM_OF_CITY][CHECK_POINT] = {0};
@@ -96,6 +98,8 @@ int compete(int,int);
 void mutate();
 void rollback();
 void swirl(int,Genetype &);
+void substitute();
+void substitute(int,int);
 void report(int);
 void trace(int);
 
@@ -172,8 +176,19 @@ void initialize(int cnt)
 	*/
 	ifstream fin(INPUT_FILE_NAME + to_string(cnt) + ".txt");
 	int i,j,point,current_city,borrow_city;
+    bool flag[GENE_PER_POINT] = {0};
+    random_sort[0] = rand() % GENE_PER_POINT;
+    flag[random_sort[0]] = true;
+    for (i = 1;i < GENE_PER_POINT;i++)
+    {
+        j = rand() % GENE_PER_POINT;
+        while (flag[(random_sort[i - 1] + j) % GENE_PER_POINT])
+            j = (j + rand() % GENE_PER_POINT) % GENE_PER_POINT;
+        random_sort[i] = (random_sort[i - 1] + j) % GENE_PER_POINT;
+        flag[random_sort[i]] = true;
+    }
+
 	stable = 0;
-	double sum[CHECK_POINT] = {0};
 	for (i = 0;i < NUM_OF_CITY;i++)
 	{
 		for (j = 0;j < CHECK_POINT;j++)
@@ -183,21 +198,22 @@ void initialize(int cnt)
 	}
     for (i = 0;i < NUM_OF_CITY;i++)
     {
-      for (j = 0;j < CHECK_POINT;j++)
-      {
-          if (j > 0)
-            sum[j] = sum[j - 1];
-          sum[j] += generate[i][j] - usage[i][j];
-      }
-      for (j = CHECK_POINT - 1;j >= 0;j--)
-      {
-          if (sum[j] <= 0)
-          {
-              for (j = j;j >= 0;j--)
-                able[i][j] = false;
-          }
-          else able[i][j] = true;
-      }
+        double sum[CHECK_POINT] = {0};
+        for (j = 0;j < CHECK_POINT;j++)
+        {
+            if (j > 0)
+              sum[j] = sum[j - 1];
+            sum[j] += generate[i][j] - usage[i][j];
+        }
+        for (j = CHECK_POINT - 1;j >= 0;j--)
+        {
+            if (sum[j] < 0)
+            {
+                for (j = j;j >= 0;j--)
+                  able[i][j] = false;
+            }
+            else able[i][j] = true;
+        }
     }
 	for (i = 0;i < NUM_OF_CITY;i++)
 		for (j = 0;j < NUM_OF_CITY;j++)
@@ -212,9 +228,13 @@ void initialize(int cnt)
 			//Initialize storage,borrow_city,borrow_amount
 			population[i].lower[j] = min(0.0,usage[current_city][point] - generate[current_city][point]);
 			population[i].upper[j] = max(0.0,generate[borrow_city][point] - usage[borrow_city][point]);
-            if (able[current_city][point])
+            if (able[current_city][point] && able[borrow_city][point])
     			population[i].gene[j].borrow_amount = random_value(population[i].lower[j],population[i].upper[j]);
-            else population[i].gene[i].borrow_amount = 0;
+            else if (able[borrow_city][point])
+              population[i].gene[j].borrow_amount = random_value(0,population[i].upper[j]);
+            else if (able[current_city][point])
+              population[i].gene[j].borrow_amount = random_value(population[i].lower[j],0);
+            else population[i].gene[j].borrow_amount = 0;
 		}
 	}
 	population[POP_SIZE] = population[0];
@@ -234,7 +254,7 @@ double random_value(double low,double high)
 
 void evaluate()
 {
-	int i,j,k,point,current_city,borrow_city;
+	int i,j,k,p,point,current_city,borrow_city;
 	double sum,cost,lost;
 	for (i = 0;i < POP_SIZE;i++)
 	{
@@ -244,8 +264,9 @@ void evaluate()
 		for (j = 0;j < NUM_OF_GENE;j++)
 		{
 			point = j / GENE_PER_POINT;
-			current_city = CURRENT[j % GENE_PER_POINT];
-			borrow_city = BORROW[j % GENE_PER_POINT];
+            p = point * GENE_PER_POINT + random_sort[j % GENE_PER_POINT];
+			current_city = CURRENT[p % GENE_PER_POINT];
+			borrow_city = BORROW[p % GENE_PER_POINT];
 			//Initialize storage
 			if (j % GENE_PER_POINT == 0)
 				for (k = 0;k < NUM_OF_CITY;k++)
@@ -256,26 +277,26 @@ void evaluate()
 						storage[k][point] = generate[k][point] - usage[k][point];
 				}
 			//判断是否允许借电，若电量不足则调整借电请求
-			if (population[i].gene[j].borrow_amount > 0)
+			if (population[i].gene[p].borrow_amount > 0)
 			{
 				if (storage[borrow_city][point] >= 0)
 				{
-					if (storage[borrow_city][point] < population[i].gene[j].borrow_amount)
-						population[i].gene[j].borrow_amount = storage[borrow_city][point];
-					storage[borrow_city][point] -= population[i].gene[j].borrow_amount;
-					storage[current_city][point] += population[i].gene[j].borrow_amount;
-					cost += abs(population[i].gene[j].borrow_amount) * COST_PER_DIST * map[borrow_city][current_city];
+					if (storage[borrow_city][point] < population[i].gene[p].borrow_amount)
+						population[i].gene[p].borrow_amount = storage[borrow_city][point];
+					storage[borrow_city][point] -= population[i].gene[p].borrow_amount;
+					storage[current_city][point] += population[i].gene[p].borrow_amount;
+					cost += abs(population[i].gene[p].borrow_amount) * COST_PER_DIST * map[borrow_city][current_city];
 				}
 			}
-			else if (population[i].gene[j].borrow_amount < 0)
+			else if (population[i].gene[p].borrow_amount < 0)
 			{
 				if (storage[current_city][point] >= 0)
 				{
-					if (storage[current_city][point] < -population[i].gene[j].borrow_amount)
-						population[i].gene[j].borrow_amount = -storage[current_city][point];
-					storage[borrow_city][point] -= population[i].gene[j].borrow_amount;
-					storage[current_city][point] += population[i].gene[j].borrow_amount;
-					cost += abs(population[i].gene[j].borrow_amount) * COST_PER_DIST * map[borrow_city][current_city];
+					if (storage[current_city][point] < -population[i].gene[p].borrow_amount)
+						population[i].gene[p].borrow_amount = -storage[current_city][point];
+					storage[borrow_city][point] -= population[i].gene[p].borrow_amount;
+					storage[current_city][point] += population[i].gene[p].borrow_amount;
+					cost += abs(population[i].gene[p].borrow_amount) * COST_PER_DIST * map[borrow_city][current_city];
 				}
 			}
 			//维护实际用电量并计算适应值
@@ -293,8 +314,16 @@ void evaluate()
 				}
 		}
 		sum -= cost;
-		population[i].fitness = sum + lost;
-        population[i].punish = lost;
+        if (lost > 0)
+        {
+            population[i].fitness = lost + 100;
+            population[i].punish = sum + lost;
+        }
+        else
+        {
+            population[i].fitness = sum + lost;
+            population[i].punish = lost;
+        }
 	}
 }
 
@@ -517,6 +546,11 @@ void rollback()
 		j = rand() % POP_SIZE;
 		swirl(j,history_best);
 	}
+    for (i = POP_SIZE / 2;i < POP_SIZE;i++)
+    {
+        j = rand() % POP_SIZE;
+        substitute(j,POP_SIZE);
+    }
 	for (i = 0;i < POP_SIZE / 2;i++)
 	{
 		j = rand() % POP_SIZE;
@@ -540,6 +574,39 @@ void swirl(int index,Genetype & base)
 	}
 }
 
+void substitute()
+{
+	int first = 0,mem,one;
+	double x;
+	for (mem = 0;mem < POP_SIZE;mem++)
+	{
+		x = rand() % 1000 / 1000.0;
+		if (x < P_CROSSOVER)
+		{
+			first++;
+			if (first % 2 == 0)
+				substitute(one,mem);
+			else one = mem;
+		}
+	}
+}
+
+void substitute(int one,int two)
+{
+	int i,a,b;
+    double x;
+	for (i = 0;i < NUM_OF_GENE;i++)
+	{
+        x = rand() % 1000 / 1000.0;
+        if (x < P_SUBSTITUTE)
+        {
+            population[one].gene[i] = population[two].gene[i];
+            population[one].lower[i] = population[two].lower[i];
+            population[one].upper[i] = population[two].upper[i];
+        }
+	}
+}
+
 void report(int cnt)
 {
 	ofstream fout(OUTPUT_FILE_NAME + to_string(cnt) + ".txt",ios::app);
@@ -550,7 +617,9 @@ void report(int cnt)
 		for (int j = i;j < NUM_OF_GENE;j += NUM_OF_CITY)
 			fout << population[POP_SIZE].gene[j].borrow_city + 1 << " " << population[POP_SIZE].gene[j].borrow_amount << "\n";
 	}*/
-	fout << population[POP_SIZE].fitness - population[POP_SIZE].punish << " " << population[POP_SIZE].punish << "\n";
+    if (population[POP_SIZE].fitness >= population[POP_SIZE].punish)
+        fout << population[POP_SIZE].fitness - population[POP_SIZE].punish << " " << population[POP_SIZE].punish << "\n";
+    else fout << -population[POP_SIZE].fitness + population[POP_SIZE].punish + 100 << " " << population[POP_SIZE].fitness - 100 << "\n";
 	fout.close();
 }
 
@@ -566,7 +635,9 @@ void trace(int cnt)
 	}
 	for (int i = 0;i < NUM_OF_GENE;i++)
 		fout << population[POP_SIZE].gene[i].borrow_amount << "\n";*/
-	fout << population[POP_SIZE].fitness - population[POP_SIZE].punish << " " << population[POP_SIZE].punish << " " <<  history_best.fitness - history_best.punish << " " << history_best.punish << "\n";
+    if (population[POP_SIZE].fitness > population[POP_SIZE].punish)
+        fout << population[POP_SIZE].fitness - population[POP_SIZE].punish << " " << population[POP_SIZE].punish << " " << history_best.fitness - history_best.punish << " " << history_best.punish << "\n";
+    else fout << -population[POP_SIZE].fitness + population[POP_SIZE].punish + 100 << " " << population[POP_SIZE].fitness - 100 << " " << -history_best.fitness + history_best.punish + 100 << " " << history_best.fitness - 100<< "\n";
 	fout.close();
 }
 
@@ -588,10 +659,9 @@ int main()
 	{
         border = (double)(count + 1) / (double)MAX_LOOP_TIME * 100;
 		generation = 0;
-		initialize(0);
+		initialize(1);
 		evaluate();
 		keep_best();
-        history_best = population[POP_SIZE];
 		while (generation++ < MAX_GENERATION)
 		{
 			elitist();
